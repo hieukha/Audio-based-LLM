@@ -91,7 +91,6 @@ test_audio/
 *.mov
 *.mkv
 *.webm
-Demo_*.mp4
 
 # Cache
 .cache/
