@@ -100,3 +100,6 @@ __pycache__/
 .mypy_cache/
 .huggingface/
 
+# Exception: Allow demo video for README (must be at the end)
+!Demo_Audio-based_LLM.mp4
+
