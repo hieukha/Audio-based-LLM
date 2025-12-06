@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Vietnamese STT (ViStreamASR)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+
+        .status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+
+        .status.listening {
+            background: #fef6e0;
+            color: #f39c12;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #startBtn {
+            background: #667eea;
+            color: white;
+        }
+
+        #startBtn:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        #stopBtn {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .results {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .result-section {
+            margin-bottom: 20px;
+        }
+
+        .result-section h3 {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            min-height: 50px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .result-content.partial {
+            border-left-color: #f39c12;
+            color: #666;
+            font-style: italic;
+        }
+
+        .result-content.final {
+            border-left-color: #27ae60;
+            font-weight: bold;
+        }
+
+        .result-content.empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #1976d2;
+        }
+
+        .mic-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="mic-icon">🎤</div>
+        <h1>Test Vietnamese STT</h1>
+        <p class="subtitle">Powered by ViStreamASR</p>
+
+        <div id="status" class="status disconnected">
+            🔴 Disconnected
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startRecording()">▶️ Start Recording</button>
+            <button id="stopBtn" onclick="stopRecording()" disabled>⏹️ Stop Recording</button>
+        </div>
+
+        <div class="results">
+            <div class="result-section">
+                <h3>📝 Partial (Real-time)</h3>
+                <div id="partialResult" class="result-content partial empty">
+                    Waiting for speech...
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h3>✅ Final Result</h3>
+                <div id="finalResult" class="result-content final empty">
+                    No final transcription yet
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            💡 <strong>Tip:</strong> Speak clearly in Vietnamese. Real-time transcription will appear as you speak!
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let audioWorklet = null;
+        let isRecording = false;
+
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const partialEl = document.getElementById('partialResult');
+        const finalEl = document.getElementById('finalResult');
+
+        // Connect to WebSocket on page load
+        window.addEventListener('load', () => {
+            connectWebSocket();
+        });
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/stt`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateStatus('connected', '🟢 Connected');
+                startBtn.disabled = false;
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'partial') {
+                        partialEl.textContent = data.text || 'Listening...';
+                        partialEl.classList.remove('empty');
+                    } else if (data.type === 'final') {
+                        finalEl.textContent = data.text || 'No speech detected';
+                        finalEl.classList.remove('empty');
+                        partialEl.textContent = 'Waiting for speech...';
+                        partialEl.classList.add('empty');
+                    }
+                } catch (e) {
+                    console.error('Error parsing message:', e);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateStatus('disconnected', '🔴 Connection Error');
+            };
+
+            ws.onclose = () => {
+                updateStatus('disconnected', '🔴 Disconnected');
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                
+                // Try to reconnect after 3 seconds
+                setTimeout(() => {
+                    console.log('Reconnecting...');
+                    connectWebSocket();
+                }, 3000);
+            };
+        }
+
+        async function startRecording() {
+            try {
+                // Request microphone access
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 48000,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+
+                // Create audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 48000
+                });
+
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                
+                // Create ScriptProcessor for audio processing
+                const bufferSize = 4096;
+                audioWorklet = audioContext.createScriptProcessor(bufferSize, 1, 1);
+                
+                audioWorklet.onaudioprocess = (e) => {
+                    if (!isRecording || ws.readyState !== WebSocket.OPEN) return;
+                    
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    const pcm16 = new Int16Array(inputData.length);
+                    
+                    // Convert float32 to int16
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    
+                    // Create packet with timestamp
+                    const timestamp = Date.now();
+                    const packet = new Uint8Array(8 + pcm16.byteLength);
+                    const view = new DataView(packet.buffer);
+                    view.setUint32(0, timestamp, false); // big-endian
+                    view.setUint32(4, 0, false); // flags
+                    packet.set(new Uint8Array(pcm16.buffer), 8);
+                    
+                    ws.send(packet);
+                };
+
+                source.connect(audioWorklet);
+                audioWorklet.connect(audioContext.destination);
+
+                isRecording = true;
+                updateStatus('listening', '🎙️ Listening...');
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Could not access microphone: ' + error.message);
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+
+            if (audioWorklet) {
+                audioWorklet.disconnect();
+                audioWorklet = null;
+            }
+
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+
+            updateStatus('connected', '🟢 Connected');
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        function updateStatus(state, text) {
+            statusEl.className = `status ${state}`;
+            statusEl.textContent = text;
+        }
+    </script>
+</body>
+</html>
+

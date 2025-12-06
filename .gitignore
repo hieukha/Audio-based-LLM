@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Models (large files)
+models/ViStreamASR/
+models/piper/*.onnx
+models/piper/*.json
+models/piper/piper
+models/piper/lib*.so*
+models/piper/espeak-ng-data/
+models/huggingface/
+*.bin
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+*.h5
+*.pb
+*.tflite
+*.pkl
+*.pickle
+
+# Fine-tune directories
+finetune_piper/
+checkpoints/
+outputs/
+runs/
+wandb/
+
+# Data files
+*.csv
+*.tsv
+*.parquet
+*.jsonl
+data/
+datasets/
+raw_data/
+
+# Environment variables
+.env
+.env.local
+
+# Audio/Video files
+test_audio/
+*.wav
+*.mp3
+*.flac
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+Demo_*.mp4
+
+# Cache
+.cache/
+*.cache
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.huggingface/
+

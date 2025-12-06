@@ -1,0 +1,31 @@
+# Realtime Voice Chat System - Vietnamese
+# Using: Piper TTS + Gemini API + RealtimeSTT (same as original source code)
+
+# Speech-to-Text - RealtimeSTT with faster-whisper (includes VAD)
+realtimestt==0.3.104
+# Note: Includes Silero VAD + WebRTC VAD for noise filtering
+
+# Text-to-Speech (Piper)
+piper-tts
+onnxruntime
+
+# LLM - Google Gemini
+google-generativeai>=0.8.0
+
+# Web Server
+fastapi
+uvicorn[standard]
+websockets
+
+# Audio Processing
+numpy
+scipy
+soundfile
+
+# Configuration
+python-dotenv
+pyyaml
+
+# Utilities
+rich
+
